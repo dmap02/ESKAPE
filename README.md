@@ -1,6 +1,6 @@
 # ESKAPE
 
-Scripts required to reproduce the findings
+Scripts and data required to reproduce the findings
 
 Title: Human skin as a reservoir for Candida auris and ESKAPE pathogens: transmissible microbes and antibiotic resistance in nursing homes 
 
