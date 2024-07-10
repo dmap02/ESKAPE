@@ -14,7 +14,7 @@ Affiliations:
 5 NIH Intramural Sequencing Center, National Human Genome Research Institute, National Institutes of Health, Bethesda, MD 20892, USA
 6 Dermatology Branch, National Institute of Arthritis and Musculoskeletal and Skin Diseases, National Institutes of Health, Bethesda, MD 20892, USA
 +  These authors contributed equally
-* Correspondence: jsegre@nhgri.nih.gov, mhayden@rush.edu
+* Correspondence: jsegre at nhgri.nih.gov, mhayden at rush.edu
 
 Keywords: Candida auris, antibiotic resistance, microbiome, ESKAPE pathogens, uropathogens, metagenomic-assembled genome, infection control, nursing home
 
