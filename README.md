@@ -8,10 +8,15 @@ Diana M. Proctor1, Sarah E. Sansom2, Clay Deming1, Sean Conlan1, Ryan A. Blauste
 
 Affiliations:
 1Microbial Genomics Section, Translational and Functional Genomics Branch, National Human Genome Research Institute, National Institutes of Health, Bethesda, MD 20892, USA
+
 2 Department of Internal Medicine, Division of Infectious Diseases, Rush University Medical Center, Chicago, IL 60612, USA
+
 3 Current Address: Department of Nutrition and Food Science, University of Maryland, College Park, MD 20742, USA
+
 4 Current Address: Lewis Sigler Institute for Integrative Genomics, Princeton University, Princeton, NJ 08540, USA
+
 5 NIH Intramural Sequencing Center, National Human Genome Research Institute, National Institutes of Health, Bethesda, MD 20892, USA
+
 6 Dermatology Branch, National Institute of Arthritis and Musculoskeletal and Skin Diseases, National Institutes of Health, Bethesda, MD 20892, USA
 +  These authors contributed equally
 * Correspondence: jsegre at nhgri.nih.gov, mhayden at rush.edu
