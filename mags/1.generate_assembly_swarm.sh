@@ -2,6 +2,10 @@
 # Author: Diana Proctor
 # Revised July 5, 2024
 
+#Purpose: generate assemblies using spades and megahit and write out a list of contigs for megahit and spades
+#reads must be in the format *_1.fastq and *_2.fastq
+
+
 # Define paths and directories
 BASE_DIR="/data/proctordm/ESKAPE"
 READS_DIR="$BASE_DIR/00_reads"
