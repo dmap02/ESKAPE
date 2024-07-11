@@ -1,12 +1,17 @@
 #!/bin/bash
+#Diana Proctor
+#Revised July 11, 2024
 
+#Purpose: take megahit ($MEGAHIT_CONTIGS_LIST) and spades ($SPADES_CONTIGS_LIST) contigs and bin them with metawrap, keeping output for spades and megahit separated
+#Binning is currently set fo length of 5000 
+#Requires MAG_wf_containers_metawrap.sif from: singularity pull shub://sskashaf/MAG_wf_containers:metawrap
 # Error handling
 error_exit() {
     echo "$1" 1>&2
     exit 1
 }
 
-############ Define paths to input
+# Define paths to input
 DATA_DIR="/data/proctordm/ESKAPE/data"
 BASE_DIR="$DATA_DIR"
 READS_DIR="/data/proctordm/ESKAPE/00_reads"
@@ -17,9 +22,21 @@ LOG_DIR="$BINNING_DIR/logs"
 CONTAINER_DIR="/data/proctordm/ESKAPE/container"
 SIF_FILE="$CONTAINER_DIR/MAG_wf_containers_metawrap.sif"
 
+MEGAHIT_CONTIGS_LIST="$BASE_DIR/01_assembly/01_assembly_megahit/final_contigs_list.txt"
+SPADES_CONTIGS_LIST="$BASE_DIR/01_assembly/01_assembly_spades/final_contigs_list.txt"
+
+# Define resources
+THREADS=32
+MEMORY=128
+TIME="24:00:00"
+
+BINNING_CMD="singularity run $SIF_FILE metawrap binning --metabat2 --maxbin2 --concoct -l 5000 -t $THREADS -m $MEMORY -a \${ASSEMBLY} -o \${OUTPUT} \${READ1} \${READ2}"
+
 # Ensure directories exist
 mkdir -p "$SCRIPTS_DIR"
 mkdir -p "$LOG_DIR"
+mkdir -p "$BINNING_DIR/megahit"
+mkdir -p "$BINNING_DIR/spades"
 
 # Create the binning.sh script
 cat << EOF > "$SCRIPTS_DIR/binning.sh"
@@ -30,15 +47,15 @@ READ1=\$3
 READ2=\$4
 module load singularity
 source /usr/local/current/singularity/app_conf/sing_binds
-singularity run $SIF_FILE metawrap binning --metabat2 --maxbin2 --concoct -l 5000 -t 32 -m 128 -a \${ASSEMBLY} -o \${OUTPUT} \${READ1} \${READ2}
+$BINNING_CMD
 EOF
 
 # Make the script executable
 chmod +x "$SCRIPTS_DIR/binning.sh"
 
 # Read assemblies into arrays
-mapfile -t MEGAHIT_ASSEMBLIES < "$BASE_DIR/01_assembly/01_assembly_megahit/final_contigs_list.txt"
-mapfile -t SPADES_ASSEMBLIES < "$BASE_DIR/01_assembly/01_assembly_spades/final_contigs_list.txt"
+mapfile -t MEGAHIT_ASSEMBLIES < "$MEGAHIT_CONTIGS_LIST"
+mapfile -t SPADES_ASSEMBLIES < "$SPADES_CONTIGS_LIST"
 
 # Create lists of forward and reverse reads
 ls -d $READS_DIR/*_1.fastq > READ1.list
@@ -93,10 +110,12 @@ MEGAHIT_SWARM_FILE="$BINNING_DIR/megahit_swarm_file"
 for sample in "${megahit_matching_samples[@]}"; do
     read1="$READS_DIR/${sample}_1.fastq"
     read2="$READS_DIR/${sample}_2.fastq"
-    megahit_assembly=$(grep "/${sample}_megahit_out" "$BASE_DIR/01_assembly/01_assembly_megahit/final_contigs_list.txt")
+    megahit_assembly=$(grep "/${sample}_megahit_out" "$MEGAHIT_CONTIGS_LIST")
 
     if [ -f "$megahit_assembly" ] && [ -f "$read1" ] && [ -f "$read2" ]; then
-        echo "bash $SCRIPTS_DIR/binning.sh $megahit_assembly $BINNING_DIR/${sample}_bins $read1 $read2" >> "$MEGAHIT_SWARM_FILE"
+        megahit_output_dir="$BINNING_DIR/megahit/${sample}_megahit_binning_out"
+        mkdir -p "$megahit_output_dir"
+        echo "bash $SCRIPTS_DIR/binning.sh $megahit_assembly $megahit_output_dir $read1 $read2" >> "$MEGAHIT_SWARM_FILE"
     else
         echo "Warning: Required file(s) missing or not readable for sample $sample. Skipping..."
     fi
@@ -108,10 +127,12 @@ SPADES_SWARM_FILE="$BINNING_DIR/spades_swarm_file"
 for sample in "${spades_matching_samples[@]}"; do
     read1="$READS_DIR/${sample}_1.fastq"
     read2="$READS_DIR/${sample}_2.fastq"
-    spades_assembly=$(grep "/${sample}_spades_out" "$BASE_DIR/01_assembly/01_assembly_spades/final_contigs_list.txt")
+    spades_assembly=$(grep "/${sample}_spades_out" "$SPADES_CONTIGS_LIST")
 
     if [ -f "$spades_assembly" ] && [ -f "$read1" ] && [ -f "$read2" ]; then
-        echo "bash $SCRIPTS_DIR/binning.sh $spades_assembly $BINNING_DIR/${sample}_bins $read1 $read2" >> "$SPADES_SWARM_FILE"
+        spades_output_dir="$BINNING_DIR/spades/${sample}_spades_binning_out"
+        mkdir -p "$spades_output_dir"
+        echo "bash $SCRIPTS_DIR/binning.sh $spades_assembly $spades_output_dir $read1 $read2" >> "$SPADES_SWARM_FILE"
     else
         echo "Warning: Required file(s) missing or not readable for sample $sample. Skipping..."
     fi
@@ -127,18 +148,17 @@ echo "Number of Spades matching samples to be processed: ${#spades_matching_samp
 
 # Launch swarm jobs and print job IDs
 echo "Launching MegaHit swarm job..."
-megahit_jobid=$(swarm -f "$MEGAHIT_SWARM_FILE" -t 32 -g 128 --time 24:00:00 --logdir "$LOG_DIR")
+megahit_jobid=$(swarm -f "$MEGAHIT_SWARM_FILE" -t $THREADS -g $MEMORY --time $TIME --logdir "$LOG_DIR")
 echo "MegaHit swarm job launched with job ID: $megahit_jobid"
 
 echo "Launching Spades swarm job..."
-spades_jobid=$(swarm -f "$SPADES_SWARM_FILE" -t 32 -g 128 --time 24:00:00 --logdir "$LOG_DIR")
+spades_jobid=$(swarm -f "$SPADES_SWARM_FILE" -t $THREADS -g $MEMORY --time $TIME --logdir "$LOG_DIR")
 echo "Spades swarm job launched with job ID: $spades_jobid"
 
 echo "Jobs launched successfully."
 
-########################### you may or may not be able to run all this on your sinteractive node
 # Wait for swarm jobs to finish
-echo "Waiting for Megahit swarm jobs to finish..."
+echo "Waiting for MegaHit swarm jobs to finish..."
 while squeue -u $USER -j $megahit_jobid > /dev/null 2>&1; do
     sleep 60
 done
@@ -151,30 +171,36 @@ done
 # Write message indicating that swarm jobs finished successfully
 echo "Swarm jobs completed successfully" >> "$LOG_DIR/swarm_completion.log"
 
-# Analyze Megahit log files for failures and create a list of failed samples
-echo "Analyzing Megahit log files for failures..."
+# Analyze MegaHit log files for failures and create a list of failed samples
+echo "Analyzing MegaHit log files for failures..."
+MEGAHIT_FAILED_SAMPLES_LIST="$BINNING_DIR/megahit_failed_samples_list"
 > $MEGAHIT_FAILED_SAMPLES_LIST
 for logfile in $LOG_DIR/*.o*; do
     if ! grep -q "PIPELINE SUCCESSFULLY FINISHED" "$logfile"; then
         sample=$(grep -oP '(?<=final.contigs.fa ).*(?= )' "$logfile" | head -n 1)
-        echo "$sample" >> $MEGAHIT_FAILED_SAMPLES_LIST
+        if [ -n "$sample" ]; then
+            echo "$sample" >> $MEGAHIT_FAILED_SAMPLES_LIST
+        fi
     fi
 done
 
-# Check if Megahit failed samples list was created successfully and write "none" if empty
+# Check if MegaHit failed samples list was created successfully and write "none" if empty
 if [[ -s "$MEGAHIT_FAILED_SAMPLES_LIST" ]]; then
-    echo "Megahit failed samples list created at $MEGAHIT_FAILED_SAMPLES_LIST"
+    echo "MegaHit failed samples list created at $MEGAHIT_FAILED_SAMPLES_LIST"
 else
     echo "none" > $MEGAHIT_FAILED_SAMPLES_LIST
 fi
 
 # Analyze Spades log files for failures and create a list of failed samples
 echo "Analyzing Spades log files for failures..."
+SPADES_FAILED_SAMPLES_LIST="$BINNING_DIR/spades_failed_samples_list"
 > $SPADES_FAILED_SAMPLES_LIST
 for logfile in $LOG_DIR/*.o*; do
     if ! grep -q "PIPELINE SUCCESSFULLY FINISHED" "$logfile"; then
         sample=$(grep -oP '(?<=final.contigs.fa ).*(?= )' "$logfile" | head -n 1)
-        echo "$sample" >> $SPADES_FAILED_SAMPLES_LIST
+        if [ -n "$sample" ]; then
+            echo "$sample" >> $SPADES_FAILED_SAMPLES_LIST
+        fi
     fi
 done
 
@@ -186,3 +212,17 @@ else
 fi
 
 echo "Script completed successfully."
+
+# Function to count the number of failed samples
+count_failed_samples() {
+    failed_samples_file="$1"
+    grep -cv '^none$' "$failed_samples_file"
+}
+
+# Get the count of failed samples for MegaHit and SPAdes
+megahit_failed_count=$(count_failed_samples "$MEGAHIT_FAILED_SAMPLES_LIST")
+spades_failed_count=$(count_failed_samples "$SPADES_FAILED_SAMPLES_LIST")
+
+# Print the results
+echo "Number of samples that failed MegaHit binning: $megahit_failed_count"
+echo "Number of samples that failed SPAdes binning: $spades_failed_count"
