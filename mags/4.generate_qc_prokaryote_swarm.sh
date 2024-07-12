@@ -1,4 +1,6 @@
 #!/bin/bash
+#Diana Proctor
+# Purpose: Take the refined prokaryotic bins, run checkm2, gunc, quast and infernal on them
 
 # Define the number of threads based on the SLURM job allocation
 THREADS=${SLURM_CPUS_ON_NODE:-1}
